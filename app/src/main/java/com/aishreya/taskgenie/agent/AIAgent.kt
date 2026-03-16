@@ -3,6 +3,8 @@ package com.aishreya.taskgenie.agent
 import android.content.Context
 import android.util.Log
 import com.aishreya.taskgenie.data.MCPClient
+import com.aishreya.taskgenie.agent.NLPDateTimeParser
+import com.aishreya.taskgenie.tools.reminder.ReminderTool
 
 class AIAgent {
 
@@ -33,6 +35,27 @@ class AIAgent {
                     val msg = parts[2].trim()
 
                     client.sendMail(context, email, msg)
+                }
+            }
+
+            // 🔔 Reminder tool
+            text.contains("remind") -> {
+
+                val parsed = NLPDateTimeParser.parse(message)
+
+                if (parsed != null) {
+
+                    ReminderTool.setReminder(
+                        context,
+                        parsed.message,
+                        parsed.triggerTime
+                    )
+
+                    "Reminder set successfully 👍"
+
+                } else {
+
+                    "Couldn't understand date/time"
                 }
             }
 

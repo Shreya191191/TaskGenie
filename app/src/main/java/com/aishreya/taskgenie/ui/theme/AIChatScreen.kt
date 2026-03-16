@@ -1,5 +1,6 @@
 package com.aishreya.taskgenie.ui.theme
 
+import android.content.Intent
 import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -7,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import com.aishreya.taskgenie.ui.reminder.ReminderListActivity
 import com.aishreya.taskgenie.viewmodel.AIViewModel
 
 @Composable
@@ -56,5 +58,12 @@ fun AIChatScreen(viewModel: AIViewModel) {
         Text(text = "Response:")
 
         Text(text = response)
+
+        Button(onClick = {
+            val intent = Intent(context, ReminderListActivity::class.java)
+            context.startActivity(intent)
+        }) {
+            Text("View Reminders")
+        }
     }
 }
