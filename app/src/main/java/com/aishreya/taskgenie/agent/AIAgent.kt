@@ -4,71 +4,85 @@ import android.content.Context
 import android.util.Log
 import com.aishreya.taskgenie.data.MCPClient
 import com.aishreya.taskgenie.agent.NLPDateTimeParser
+import com.aishreya.taskgenie.data.model.GeminiClient
 import com.aishreya.taskgenie.tools.reminder.ReminderTool
 
 class AIAgent {
 
+    private val gemini = GeminiClient()
     private val client = MCPClient()
 
     suspend fun processMessage(context:Context, message: String): String {
 
-        val text = message.lowercase()
-        Log.d("AI_AGENT", "Message received: $message")
-        return when {
+        Log.d("AI_AGENT", "User message: $message")
 
-            text.startsWith("weather") -> {
+        return try {
 
-                val city = message.replace("weather", "").trim()
+            val aiResponse = gemini.analyzeIntent(message)
 
-                client.getWeather(city)
-            }
+            Log.d("AI_AGENT", "Gemini response: $aiResponse")
 
-            text.startsWith("mail") -> {
+            when {
 
-                val parts = message.split(",")
+                aiResponse.contains("weather") -> {
 
-                if (parts.size < 3) {
-                    "Format: mail,email,message"
-                } else {
+                    val city = extractValue(aiResponse, "city")
 
-                    val email = parts[1].trim()
-                    val msg = parts[2].trim()
+                    if (city.isEmpty()) {
+                        "Please tell the city name."
+                    } else {
+                        client.getWeather(city)
+                    }
+                }
 
-                    client.sendMail(context, email, msg)
+                aiResponse.contains("mail") -> {
+
+                    val email = extractValue(aiResponse, "email")
+                    val msg = extractValue(aiResponse, "message")
+
+                    if (email.isEmpty() || msg.isEmpty()) {
+                        "I couldn't understand the email format."
+                    } else {
+                        client.sendMail(context, email, msg)
+                    }
+                }
+
+                aiResponse.contains("reminder") -> {
+
+                    val parsed = NLPDateTimeParser.parse(message)
+
+                    if (parsed != null) {
+
+                        ReminderTool.setReminder(
+                            context,
+                            parsed.message,
+                            parsed.triggerTime
+                        )
+
+                        "Reminder set successfully 👍"
+
+                    } else {
+                        "Couldn't understand the reminder time."
+                    }
+                }
+
+                else -> {
+
+                    "Sorry, I couldn't understand your request."
                 }
             }
 
-            // 🔔 Reminder tool
-            text.contains("remind") -> {
+        } catch (e: Exception) {
 
-                val parsed = NLPDateTimeParser.parse(message)
+            Log.e("AI_AGENT", "Error: ${e.message}")
 
-                if (parsed != null) {
-
-                    ReminderTool.setReminder(
-                        context,
-                        parsed.message,
-                        parsed.triggerTime
-                    )
-
-                    "Reminder set successfully 👍"
-
-                } else {
-
-                    "Couldn't understand date/time"
-                }
-            }
-
-            else -> {
-
-                """
-                Try commands:
-                
-                weather Delhi
-                
-                mail,abc@gmail.com,Hello bro
-                """.trimIndent()
-            }
+            "Something went wrong."
         }
+    }
+    private fun extractValue(json: String, key: String): String {
+
+        val regex = Regex("\"$key\"\\s*:\\s*\"(.*?)\"")
+
+        return regex.find(json)?.groupValues?.get(1) ?: ""
     }
 }
