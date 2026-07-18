@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from typing import Optional, Any, Dict
 import yaml
@@ -57,6 +58,7 @@ def load_config(config_path: Optional[str] = None) -> AppConfig:
                 return AppConfig.model_validate(data)
         except Exception as e:
             # Fall back to defaults if parsing fails
-            print(f"Warning: Failed to load config from {resolved_path} due to: {e}. Using defaults.")
+            print(f"Warning: Failed to load config from {resolved_path} due to: {e}. Using defaults.", file=sys.stderr)
             
     return AppConfig()
+
