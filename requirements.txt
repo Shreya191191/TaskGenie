@@ -1,0 +1,5 @@
+fastmcp==2.13.0
+uiautomator2>=3.5.0
+uiautodev>=0.13.4
+pydantic>=2.0.0
+pyyaml>=6.0.0

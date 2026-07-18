@@ -1,0 +1,1 @@
+# Device session registry placeholder
