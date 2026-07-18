@@ -1,0 +1,15 @@
+# TaskGenie MCP Server Configuration
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  transport: "streamable-http"  # Options: "stdio", "streamable-http"
+
+device:
+  default_timeout: 10.0         # Default wait time for UI elements in seconds
+  poll_interval: 1.0            # Time to wait between status polls in seconds
+
+logging:
+  level: "INFO"                 # Log levels: DEBUG, INFO, WARNING, ERROR
+  file_path: "logs/taskgenie.log" # Path to write the diagnostic log files
+  stdout_suppress: true         # Force all standard prints away from stdout to protect MCP channel
