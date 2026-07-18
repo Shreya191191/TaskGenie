@@ -8,6 +8,7 @@ Corresponds to server.py in the reference repository.
 from fastmcp import FastMCP
 
 from taskgenie.core.config import load_config
+from taskgenie.tools import register_all_tools
 
 # Load configuration from YAML (defaults are used if no file is found)
 config = load_config()
@@ -59,3 +60,4 @@ Always explain what you're doing, show results clearly, and suggest next steps.
 When tools return structured responses, present the information in an organized, readable way.""",
 )
 
+register_all_tools(mcp)
