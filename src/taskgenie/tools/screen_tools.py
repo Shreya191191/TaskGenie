@@ -85,3 +85,29 @@ def register_screen_tools(mcp):
         except Exception as e:
             print(f"Failed to unlock screen: {str(e)}", file=sys.stderr)
             return False
+
+    @mcp.tool(
+        name="wait_for_screen_on",
+        description="Wait until the device screen is turned on. Useful for asynchronous operations where screen activation is expected.",
+    )
+    async def wait_for_screen_on(device_id: str) -> str:
+        """Asynchronously wait for the device screen to turn on.
+
+        This function polls the device screen state and returns when the screen
+        becomes active. Useful for scenarios where the screen state change
+        might take time.
+
+        Args:
+            device_id: The device identifier to connect to
+
+        Returns:
+            str: Message confirming that the screen is now on
+
+        Note:
+            This is an async function that checks every second for the screen to turn on.
+            It may wait indefinitely if the screen never turns on.
+        """
+        d = u2.connect(device_id)
+        while not d.screen_on():
+            await asyncio.sleep(1)
+        return "Screen is now on"
