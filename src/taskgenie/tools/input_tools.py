@@ -146,6 +146,100 @@ def register_input_tools(mcp):
             return False
 
     @mcp.tool(
+        name="swipe",
+        description="Perform a swipe gesture from one coordinate to another. Useful for scrolling, paging, or custom swipe actions.",
+    )
+    def swipe(
+        start_x: float,
+        start_y: float,
+        end_x: float,
+        end_y: float,
+        duration: float = 0.5,
+        device_id: Optional[str] = None,
+    ) -> bool:
+        """Perform a swipe gesture on the device screen.
+
+        This function simulates a finger swipe from a start point to an end point,
+        with control over the swipe duration for natural movement.
+
+        Args:
+            start_x: Starting X coordinate (0 to screen width)
+            start_y: Starting Y coordinate (0 to screen height)
+            end_x: Ending X coordinate
+            end_y: Ending Y coordinate
+            duration: Swipe duration in seconds (default: 0.5)
+            device_id: Optional device identifier. If not provided, uses the first available device
+
+        Returns:
+            bool: True if the swipe was performed successfully, False otherwise
+
+        Examples:
+            >>> swipe(100, 500, 100, 100)  # Swipe up
+            >>> swipe(100, 100, 500, 100, 0.3)  # Swipe right quickly
+            >>> swipe(300, 400, 300, 1000, 1.0)  # Slow swipe down
+
+        Note:
+            Coordinates are relative to the device screen resolution.
+            Use (0, 0) for top-left corner.
+        """
+        try:
+            d = u2.connect(device_id)
+            d.swipe(start_x, start_y, end_x, end_y, duration=duration)
+            return True
+        except Exception as e:
+            print(f"Failed to perform swipe: {str(e)}", file=sys.stderr)
+            return False
+
+    @mcp.tool(
+        name="drag",
+        description="Drag a specific UI element to a target location on the screen. Useful for drag-and-drop operations, reordering items, or custom interactions.",
+    )
+    def drag(
+        selector: str,
+        selector_type: str,
+        to_x: int,
+        to_y: int,
+        device_id: Optional[str] = None,
+    ) -> bool:
+        """Drag a UI element to a specific location on the screen.
+
+        This function finds an element and drags it to the specified coordinates,
+        useful for drag-and-drop operations and custom UI interactions.
+
+        Args:
+            selector: The value to identify the element to drag
+            selector_type: The type of selector ('text', 'resourceId', or 'description')
+            to_x: Target X coordinate to drag the element to
+            to_y: Target Y coordinate to drag the element to
+            device_id: Optional device identifier. If not provided, uses the first available device
+
+        Returns:
+            bool: True if the drag operation was successful, False otherwise
+
+        Examples:
+            >>> drag("Item", "text", 200, 300)  # Drag text "Item" to coordinates (200, 300)
+            >>> drag("com.app:id/card", "resourceId", 100, 100)  # Drag by resource ID
+        """
+        try:
+            d = u2.connect(device_id)
+            if selector_type == "text":
+                el = d(text=selector)
+            elif selector_type == "resourceId":
+                el = d(resourceId=selector)
+            elif selector_type == "description":
+                el = d(description=selector)
+            else:
+                raise ValueError(f"Invalid selector_type: {selector_type}")
+
+            if el and el.exists:
+                el.drag_to(to_x, to_y)
+                return True
+            return False
+        except Exception as e:
+            print(f"Failed to drag element {selector}: {str(e)}", file=sys.stderr)
+            return False
+
+    @mcp.tool(
         name="send_text",
         description="Send text input to the currently focused UI element. Can optionally clear existing text before sending. Perfect for form filling, search boxes, and text fields.",
     )
