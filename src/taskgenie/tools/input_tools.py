@@ -45,6 +45,107 @@ def register_input_tools(mcp):
             return False
 
     @mcp.tool(
+        name="click",
+        description="Click on a UI element identified by text, resource ID, or content description. Supports multiple selector types for flexible element targeting.",
+    )
+    def click(
+        selector: str,
+        selector_type: str = "text",
+        timeout: float = 10.0,
+        device_id: Optional[str] = None,
+    ) -> bool:
+        """Click on a UI element on the device screen using various selector types.
+
+        This function finds and clicks on UI elements using different identification
+        methods. It's one of the most commonly used automation actions.
+
+        Args:
+            selector: The value to search for (text, resource ID, or content description)
+            selector_type: The type of selector to use:
+                - 'text': Search by visible text on the element
+                - 'resourceId': Search by Android resource ID (e.g., "com.app:id/button")
+                - 'description': Search by content description/accessibility label
+            timeout: Maximum time in seconds to wait for the element to appear (default: 10.0)
+            device_id: Optional device identifier. If not provided, uses the first available device
+
+        Returns:
+            bool: True if the element was found and clicked successfully, False otherwise
+
+        Examples:
+            >>> click("Submit", "text")  # Click element with text "Submit"
+            >>> click("com.app:id/login_btn", "resourceId")  # Click by resource ID
+            >>> click("Login button", "description")  # Click by content description
+
+        Raises:
+            ValueError: If an invalid selector_type is provided
+        """
+        try:
+            d = u2.connect(device_id)
+            if selector_type == "text":
+                el = d(text=selector).wait(timeout=timeout)
+            elif selector_type == "resourceId":
+                el = d(resourceId=selector).wait(timeout=timeout)
+            elif selector_type == "description":
+                el = d(description=selector).wait(timeout=timeout)
+            else:
+                raise ValueError(f"Invalid selector_type: {selector_type}")
+
+            if el and el.exists:
+                el.click()
+                return True
+            return False
+        except Exception as e:
+            print(f"Failed to click element {selector}: {str(e)}", file=sys.stderr)
+            return False
+
+    @mcp.tool(
+        name="long_click",
+        description="Perform a long click (press and hold) on a UI element. Useful for context menus, drag operations, or long press actions.",
+    )
+    def long_click(
+        selector: str,
+        selector_type: str = "text",
+        duration: float = 1.0,
+        device_id: Optional[str] = None,
+    ) -> bool:
+        """Perform a long click gesture on a UI element.
+
+        This function simulates pressing and holding an element for a specified duration,
+        which can trigger context menus, activate drag modes, or perform other long-press actions.
+
+        Args:
+            selector: The value to search for (text, resource ID, or content description)
+            selector_type: The type of selector ('text', 'resourceId', or 'description')
+            duration: Duration of the long click in seconds (default: 1.0)
+            device_id: Optional device identifier. If not provided, uses the first available device
+
+        Returns:
+            bool: True if the long click was performed successfully, False otherwise
+
+        Examples:
+            >>> long_click("Item", "text", 2.0)  # Long click for 2 seconds
+            >>> long_click("com.app:id/draggable", "resourceId")  # Long click by ID
+        """
+        try:
+            d = u2.connect(device_id)
+            if selector_type == "text":
+                el = d(text=selector)
+            elif selector_type == "resourceId":
+                el = d(resourceId=selector)
+            elif selector_type == "description":
+                el = d(description=selector)
+            else:
+                raise ValueError(f"Invalid selector_type: {selector_type}")
+
+            if el and el.exists:
+                el.long_click(duration=duration)
+                return True
+            return False
+        except Exception as e:
+            print(f"Failed to long click element {selector}: {str(e)}", file=sys.stderr)
+            return False
+
+    @mcp.tool(
         name="send_text",
         description="Send text input to the currently focused UI element. Can optionally clear existing text before sending. Perfect for form filling, search boxes, and text fields.",
     )
