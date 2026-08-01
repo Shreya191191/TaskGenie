@@ -177,3 +177,84 @@ def register_inspection_tools(mcp):
         except Exception as e:
             print(f"Failed to scroll to element {selector}: {str(e)}", file=sys.stderr)
             return False
+
+    @mcp.tool(
+        name="screenshot",
+        description="Capture a screenshot of the device screen and save it to the specified file path. Essential for debugging and visual verification.",
+    )
+    def screenshot(filename: str, device_id: Optional[str] = None) -> bool:
+        """Take a screenshot of the device screen and save it to a file.
+
+        This function captures the current screen state and saves it as an image file,
+        which is useful for debugging automation failures and creating visual documentation.
+
+        Args:
+            filename: The file path where the screenshot will be saved (e.g., "screenshot.png")
+            device_id: Optional device identifier. If not provided, uses the first available device
+
+        Returns:
+            bool: True if the screenshot was saved successfully, False otherwise
+
+        Examples:
+            >>> screenshot("login_screen.png")  # Save as PNG
+            >>> screenshot("/path/to/screenshots/error.png")  # Save with full path
+            >>> screenshot(f"test_{timestamp}.jpg")  # Dynamic filename
+
+        Note:
+            Supported formats include PNG, JPG, and other common image formats.
+            The directory must exist and be writable.
+        """
+        try:
+            d = u2.connect(device_id)
+            d.screenshot(filename)
+            return True
+        except Exception as e:
+            print(f"Failed to take screenshot: {str(e)}", file=sys.stderr)
+            return False
+
+    @mcp.tool(
+        name="dump_hierarchy",
+        description="Dump the complete UI hierarchy of the current screen as XML. Essential for understanding screen structure, finding elements, and debugging automation issues.",
+    )
+    def dump_hierarchy(
+        compressed: bool = False,
+        pretty: bool = True,
+        max_depth: int = 50,
+        device_id: Optional[str] = None,
+    ) -> str:
+        """Export the current screen's UI hierarchy as XML.
+
+        This function provides a complete XML representation of all UI elements
+        currently visible on the screen, which is invaluable for:
+        - Finding elements for automation
+        - Understanding screen structure
+        - Debugging automation failures
+        - Analyzing app UI changes
+
+        Args:
+            compressed: If True, excludes less important nodes for smaller output (default: False)
+            pretty: If True, formats the XML with proper indentation (default: True)
+            max_depth: Maximum depth of XML hierarchy to include (default: 50)
+            device_id: Optional device identifier. If not provided, uses the first available device
+
+        Returns:
+            str: XML string representing the complete UI hierarchy
+
+        Examples:
+            >>> dump_hierarchy()  # Full pretty-formatted hierarchy
+            >>> dump_hierarchy(compressed=True)  # Smaller output for debugging
+            >>> dump_hierarchy(max_depth=10)  # Limited depth for faster processing
+
+        Note:
+            The output can be very large for complex screens. Use compressed=True
+            for quicker analysis when you don't need all details.
+        """
+        try:
+            d = u2.connect(device_id)
+            xml = d.dump_hierarchy(
+                compressed=compressed, pretty=pretty, max_depth=max_depth
+            )
+            return xml
+        except Exception as e:
+            print(f"Failed to dump UI hierarchy: {str(e)}", file=sys.stderr)
+            return ""
