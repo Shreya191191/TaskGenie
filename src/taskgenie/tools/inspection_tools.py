@@ -132,3 +132,48 @@ def register_inspection_tools(mcp):
         except Exception as e:
             print(f"Failed to wait for element {selector}: {str(e)}", file=sys.stderr)
             return False
+
+    @mcp.tool(
+        name="scroll_to",
+        description="Scroll to a specific element on the screen. Automatically finds scrollable containers and scrolls until the target element is visible.",
+    )
+    def scroll_to(
+        selector: str, selector_type: str = "text", device_id: Optional[str] = None
+    ) -> bool:
+        """Scroll to make a UI element visible on the screen.
+
+        This function automatically finds scrollable containers and scrolls until
+        the target element becomes visible. Useful for long lists and pages.
+
+        Args:
+            selector: The value to search for (text, resource ID, or content description)
+            selector_type: The type of selector ('text', 'resourceId', or 'description')
+            device_id: Optional device identifier. If not provided, uses the first available device
+
+        Returns:
+            bool: True if the element was found and scrolled into view, False otherwise
+
+        Examples:
+            >>> scroll_to("Settings", "text")  # Scroll to element with text "Settings"
+            >>> scroll_to("com.app:id/footer", "resourceId")  # Scroll by resource ID
+            >>> scroll_to("Contact Us", "description")  # Scroll by content description
+
+        Note:
+            This function will scroll through all scrollable containers on the screen
+            to find the target element. It may not work if the element is in a
+            non-scrollable area or requires specific scroll directions.
+        """
+        try:
+            d = u2.connect(device_id)
+            if selector_type == "text":
+                return d(scrollable=True).scroll.to(text=selector)
+            elif selector_type == "resourceId":
+                return d(scrollable=True).scroll.to(resourceId=selector)
+            elif selector_type == "description":
+                el = d(scrollable=True).scroll.to(description=selector)
+                return el is not None and el.exists
+            else:
+                raise ValueError(f"Invalid selector_type: {selector_type}")
+        except Exception as e:
+            print(f"Failed to scroll to element {selector}: {str(e)}", file=sys.stderr)
+            return False
