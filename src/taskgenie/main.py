@@ -11,11 +11,15 @@ from taskgenie.server import mcp, config
 
 def main() -> None:
     """Start the TaskGenie MCP server using settings from configuration."""
-    mcp.run(
-        transport=config.server.transport,
-        host=config.server.host,
-        port=config.server.port,
-    )
+    if config.server.transport == "stdio":
+        mcp.run(transport="stdio", show_banner=False)
+    else:
+        mcp.run(
+            transport=config.server.transport,
+            host=config.server.host,
+            port=config.server.port,
+            show_banner=False,
+        )
 
 
 if __name__ == "__main__":

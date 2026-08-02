@@ -316,13 +316,32 @@ def register_device_tools(mcp):
             info = d.info
             display = d.window_size()
 
+            battery = {}
+            if hasattr(d, "battery_info"):
+                battery = getattr(d, "battery_info", {})
+            else:
+                try:
+                    res = d.shell("dumpsys battery").output
+                    level = next(
+                        (
+                            int(l.split(":")[1].strip())
+                            for l in res.splitlines()
+                            if "level:" in l
+                        ),
+                        None,
+                    )
+                    if level is not None:
+                        battery = {"level": level}
+                except Exception:
+                    battery = {}
+
             device_info = {
                 "serial": d.serial,
                 "resolution": f"{display[0]}x{display[1]}",
                 "version": info.get("version", {}).get("release", ""),
-                "sdk": info.get("version", {}).get("sdk", 0),
-                "battery": d.battery_info,
-                "wifi_ip": d.wlan_ip,
+                "sdk": info.get("version", {}).get("sdk", 0) or info.get("sdkInt", 0),
+                "battery": battery,
+                "wifi_ip": getattr(d, "wlan_ip", ""),
                 "manufacturer": info.get("manufacturer", ""),
                 "model": info.get("model", ""),
                 "is_screen_on": d.screen_on(),
