@@ -40,3 +40,40 @@ def register_advanced_tools(mcp):
         except Exception as e:
             print(f"Failed to get toast message: {str(e)}", file=sys.stderr)
             return ""
+
+    @mcp.tool(
+        name="wait_activity",
+        description="Wait for a specific Android activity to appear on the screen. Useful for navigation verification and app state validation.",
+    )
+    def wait_activity(
+        activity: str, timeout: float = 10.0, device_id: Optional[str] = None
+    ) -> bool:
+        """Wait for a specific Android activity to become the current foreground activity.
+
+        This function monitors the device and waits until the specified activity
+        appears in the foreground, which is useful for verifying navigation
+        and app state transitions.
+
+        Args:
+            activity: The full activity name to wait for (e.g., "com.example.app.MainActivity")
+            timeout: Maximum time in seconds to wait (default: 10.0)
+            device_id: Optional device identifier. If not provided, uses the first available device
+
+        Returns:
+            bool: True if the activity appeared within the timeout, False otherwise
+
+        Examples:
+            >>> wait_activity("com.android.settings.Settings")  # Wait for Settings
+            >>> wait_activity("com.example.app.MainActivity", 30)  # Wait 30 seconds
+            >>> wait_activity(".LoginActivity")  # Relative activity name
+
+        Note:
+            Activity names can be fully qualified (package + activity) or
+            relative to the app package starting with a dot (.).
+        """
+        try:
+            d = u2.connect(device_id)
+            return d.wait_activity(activity, timeout=timeout)
+        except Exception as e:
+            print(f"Failed to wait for activity {activity}: {str(e)}", file=sys.stderr)
+            return False
