@@ -1,5 +1,6 @@
 """UI element inspection and hierarchy analysis tools for Android automation."""
 
+import os
 import sys
 import uiautomator2 as u2
 from typing import Optional, TypedDict, Dict, Any
@@ -206,7 +207,20 @@ def register_inspection_tools(mcp):
         """
         try:
             d = u2.connect(device_id)
-            d.screenshot(filename)
+            if not os.path.isabs(filename):
+                project_root = os.path.dirname(
+                    os.path.dirname(
+                        os.path.dirname(
+                            os.path.dirname(os.path.abspath(__file__))
+                        )
+                    )
+                )
+                filepath = os.path.abspath(os.path.join(project_root, filename))
+            else:
+                filepath = os.path.abspath(filename)
+
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            d.screenshot(filepath)
             return True
         except Exception as e:
             print(f"Failed to take screenshot: {str(e)}", file=sys.stderr)
