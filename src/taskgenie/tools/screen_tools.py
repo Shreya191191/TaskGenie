@@ -1,9 +1,31 @@
 """Screen control tools for Android automation."""
 
+import shutil
+import subprocess
 import sys
 import uiautomator2 as u2
 from typing import Optional
 import asyncio
+
+
+def get_device(device_id: Optional[str] = None) -> u2.Device:
+    """Connect to uiautomator2 device, auto-resolving first available device if device_id is None."""
+    if not device_id:
+        adb_path = shutil.which("adb")
+        if adb_path:
+            try:
+                res = subprocess.run(
+                    [adb_path, "devices"], capture_output=True, text=True
+                )
+                for line in res.stdout.strip().splitlines()[1:]:
+                    if line.strip():
+                        parts = line.split()
+                        if len(parts) >= 2 and parts[1] == "device":
+                            device_id = parts[0]
+                            break
+            except Exception:
+                pass
+    return u2.connect(device_id)
 
 
 def register_screen_tools(mcp):
@@ -26,7 +48,7 @@ def register_screen_tools(mcp):
             bool: True if the screen was turned on successfully, False otherwise
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             d.screen_on()
             return True
         except Exception as e:
@@ -49,7 +71,7 @@ def register_screen_tools(mcp):
             bool: True if the screen was turned off successfully, False otherwise
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             d.screen_off()
             return True
         except Exception as e:
@@ -77,7 +99,7 @@ def register_screen_tools(mcp):
             password, or biometric authentication.
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             if not d.info["screenOn"]:
                 d.screen_on()
             d.unlock()
@@ -90,7 +112,7 @@ def register_screen_tools(mcp):
         name="wait_for_screen_on",
         description="Wait until the device screen is turned on. Useful for asynchronous operations where screen activation is expected.",
     )
-    async def wait_for_screen_on(device_id: str) -> str:
+    async def wait_for_screen_on(device_id: Optional[str] = None) -> str:
         """Asynchronously wait for the device screen to turn on.
 
         This function polls the device screen state and returns when the screen
@@ -98,7 +120,7 @@ def register_screen_tools(mcp):
         might take time.
 
         Args:
-            device_id: The device identifier to connect to
+            device_id: Optional device identifier. If not provided, uses the first available device
 
         Returns:
             str: Message confirming that the screen is now on
@@ -107,7 +129,7 @@ def register_screen_tools(mcp):
             This is an async function that checks every second for the screen to turn on.
             It may wait indefinitely if the screen never turns on.
         """
-        d = u2.connect(device_id)
-        while not d.screen_on():
+        d = get_device(device_id)
+        while not d.info.get("screenOn", False):
             await asyncio.sleep(1)
-        return "Screen is now on"
+        return f"Device screen on {d.serial} is now active"

@@ -1,10 +1,31 @@
 """Application management tools for Android automation."""
 
+import shutil
+import subprocess
 import sys
 
 import uiautomator2 as u2
 from typing import Optional, Dict, Any
-import shutil
+
+
+def get_device(device_id: Optional[str] = None) -> u2.Device:
+    """Connect to uiautomator2 device, auto-resolving first available device if device_id is None."""
+    if not device_id:
+        adb_path = shutil.which("adb")
+        if adb_path:
+            try:
+                res = subprocess.run(
+                    [adb_path, "devices"], capture_output=True, text=True
+                )
+                for line in res.stdout.strip().splitlines()[1:]:
+                    if line.strip():
+                        parts = line.split()
+                        if len(parts) >= 2 and parts[1] == "device":
+                            device_id = parts[0]
+                            break
+            except Exception:
+                pass
+    return u2.connect(device_id)
 
 
 def register_app_tools(mcp):
@@ -51,7 +72,7 @@ def register_app_tools(mcp):
                 }
 
             # Connect directly to device
-            d = u2.connect(device_id)
+            d = get_device(device_id)
 
             # Get installed apps
             apps = d.app_list()
@@ -121,7 +142,7 @@ def register_app_tools(mcp):
             >>> start_app("com.example.app", wait=False)  # Launch immediately, don't wait
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             d.app_start(package_name)
             if wait:
                 pid = d.app_wait(package_name, front=True)
@@ -153,7 +174,7 @@ def register_app_tools(mcp):
             The app will need to be relaunched to be used again.
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             d.app_stop(package_name)
             return True
         except Exception as e:
@@ -181,7 +202,7 @@ def register_app_tools(mcp):
             The device may take a few seconds to fully close all apps.
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             d.app_stop_all()
             return True
         except Exception as e:
@@ -211,7 +232,7 @@ def register_app_tools(mcp):
             The app will behave as if freshly installed on next launch.
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             d.app_clear(package_name)
             return True
         except Exception as e:

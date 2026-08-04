@@ -1,8 +1,30 @@
 """Advanced automation tools (toast messages, activity waiting)."""
 
+import shutil
+import subprocess
 import sys
 import uiautomator2 as u2
 from typing import Optional
+
+
+def get_device(device_id: Optional[str] = None) -> u2.Device:
+    """Connect to uiautomator2 device, auto-resolving first available device if device_id is None."""
+    if not device_id:
+        adb_path = shutil.which("adb")
+        if adb_path:
+            try:
+                res = subprocess.run(
+                    [adb_path, "devices"], capture_output=True, text=True
+                )
+                for line in res.stdout.strip().splitlines()[1:]:
+                    if line.strip():
+                        parts = line.split()
+                        if len(parts) >= 2 and parts[1] == "device":
+                            device_id = parts[0]
+                            break
+            except Exception:
+                pass
+    return u2.connect(device_id)
 
 
 def register_advanced_tools(mcp):
@@ -35,7 +57,7 @@ def register_advanced_tools(mcp):
             The function waits up to 10 seconds for a toast message.
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             return d.toast.get_message(10.0) or ""
         except Exception as e:
             print(f"Failed to get toast message: {str(e)}", file=sys.stderr)
@@ -72,7 +94,7 @@ def register_advanced_tools(mcp):
             relative to the app package starting with a dot (.).
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             return d.wait_activity(activity, timeout=timeout)
         except Exception as e:
             print(f"Failed to wait for activity {activity}: {str(e)}", file=sys.stderr)

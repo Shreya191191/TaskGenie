@@ -1,9 +1,29 @@
-"""UI element inspection and hierarchy analysis tools for Android automation."""
-
 import os
+import shutil
+import subprocess
 import sys
 import uiautomator2 as u2
 from typing import Optional, TypedDict, Dict, Any
+
+
+def get_device(device_id: Optional[str] = None) -> u2.Device:
+    """Connect to uiautomator2 device, auto-resolving first available device if device_id is None."""
+    if not device_id:
+        adb_path = shutil.which("adb")
+        if adb_path:
+            try:
+                res = subprocess.run(
+                    [adb_path, "devices"], capture_output=True, text=True
+                )
+                for line in res.stdout.strip().splitlines()[1:]:
+                    if line.strip():
+                        parts = line.split()
+                        if len(parts) >= 2 and parts[1] == "device":
+                            device_id = parts[0]
+                            break
+            except Exception:
+                pass
+    return u2.connect(device_id)
 
 
 # Type definitions for element info
@@ -58,28 +78,28 @@ def register_inspection_tools(mcp):
             Returns empty dictionary if element not found.
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             if selector_type == "text":
-                el = d(text=selector).wait(timeout=timeout)
+                obj = d(text=selector)
             elif selector_type == "resourceId":
-                el = d(resourceId=selector).wait(timeout=timeout)
+                obj = d(resourceId=selector)
             elif selector_type == "description":
-                el = d(description=selector).wait(timeout=timeout)
+                obj = d(description=selector)
             else:
                 raise ValueError(f"Invalid selector_type: {selector_type}")
 
-            if el and el.exists:
-                info = el.info
+            if obj.wait(timeout=timeout) and obj.exists:
+                info = obj.info
                 return {
-                    "text": info.get("text", ""),
-                    "resourceId": info.get("resourceId", ""),
-                    "description": info.get("contentDescription", ""),
-                    "className": info.get("className", ""),
-                    "enabled": info.get("enabled", False),
-                    "clickable": info.get("clickable", False),
-                    "bounds": info.get("bounds", {}),
-                    "selected": info.get("selected", False),
-                    "focused": info.get("focused", False),
+                    "text": str(info.get("text") or ""),
+                    "resourceId": str(info.get("resourceId") or ""),
+                    "description": str(info.get("contentDescription") or ""),
+                    "className": str(info.get("className") or ""),
+                    "enabled": bool(info.get("enabled", False)),
+                    "clickable": bool(info.get("clickable", False)),
+                    "bounds": info.get("bounds") or {},
+                    "selected": bool(info.get("selected", False)),
+                    "focused": bool(info.get("focused", False)),
                 }
             return {}
         except Exception as e:
@@ -120,14 +140,13 @@ def register_inspection_tools(mcp):
             or network-dependent elements that may take time to appear.
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             if selector_type == "text":
-                return d(text=selector).wait(timeout=timeout)
+                return bool(d(text=selector).wait(timeout=timeout))
             elif selector_type == "resourceId":
-                return d(resourceId=selector).wait(timeout=timeout)
+                return bool(d(resourceId=selector).wait(timeout=timeout))
             elif selector_type == "description":
-                el = d(description=selector).wait(timeout=timeout)
-                return el is not None and el.exists
+                return bool(d(description=selector).wait(timeout=timeout))
             else:
                 raise ValueError(f"Invalid selector_type: {selector_type}")
         except Exception as e:
@@ -136,7 +155,7 @@ def register_inspection_tools(mcp):
 
     @mcp.tool(
         name="scroll_to",
-        description="Scroll to a specific element on the screen. Automatically finds scrollable containers and scrolls until the target element is visible.",
+        description="Scroll to make a UI element visible on the screen. Automatically finds scrollable containers and scrolls until the target element becomes visible.",
     )
     def scroll_to(
         selector: str, selector_type: str = "text", device_id: Optional[str] = None
@@ -153,28 +172,54 @@ def register_inspection_tools(mcp):
 
         Returns:
             bool: True if the element was found and scrolled into view, False otherwise
-
-        Examples:
-            >>> scroll_to("Settings", "text")  # Scroll to element with text "Settings"
-            >>> scroll_to("com.app:id/footer", "resourceId")  # Scroll by resource ID
-            >>> scroll_to("Contact Us", "description")  # Scroll by content description
-
-        Note:
-            This function will scroll through all scrollable containers on the screen
-            to find the target element. It may not work if the element is in a
-            non-scrollable area or requires specific scroll directions.
         """
         try:
-            d = u2.connect(device_id)
-            if selector_type == "text":
-                return d(scrollable=True).scroll.to(text=selector)
-            elif selector_type == "resourceId":
-                return d(scrollable=True).scroll.to(resourceId=selector)
-            elif selector_type == "description":
-                el = d(scrollable=True).scroll.to(description=selector)
-                return el is not None and el.exists
-            else:
-                raise ValueError(f"Invalid selector_type: {selector_type}")
+            d = get_device(device_id)
+
+            def get_target():
+                if selector_type == "text":
+                    return d(text=selector)
+                elif selector_type == "resourceId":
+                    return d(resourceId=selector)
+                elif selector_type == "description":
+                    return d(description=selector)
+                else:
+                    raise ValueError(f"Invalid selector_type: {selector_type}")
+
+            # Check if target is already visible
+            target = get_target()
+            if target and target.exists:
+                return True
+
+            # Attempt 1: Native UiScrollable scroll.to
+            try:
+                if selector_type == "text":
+                    res = d(scrollable=True).scroll.to(text=selector)
+                elif selector_type == "resourceId":
+                    res = d(scrollable=True).scroll.to(resourceId=selector)
+                elif selector_type == "description":
+                    res = d(scrollable=True).scroll.to(description=selector)
+                else:
+                    res = False
+
+                if res and get_target().exists:
+                    return True
+            except Exception:
+                pass
+
+            # Attempt 2: Fallback multi-swipe loop (swipes up to 10 times until target appears)
+            w, h = d.window_size()
+            start_x, start_y = w // 2, int(h * 0.8)
+            end_x, end_y = w // 2, int(h * 0.2)
+
+            for _ in range(10):
+                if get_target().exists:
+                    return True
+                d.swipe(start_x, start_y, end_x, end_y, duration=0.3)
+                if get_target().exists:
+                    return True
+
+            return get_target().exists
         except Exception as e:
             print(f"Failed to scroll to element {selector}: {str(e)}", file=sys.stderr)
             return False
@@ -206,7 +251,7 @@ def register_inspection_tools(mcp):
             The directory must exist and be writable.
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             if not os.path.isabs(filename):
                 project_root = os.path.dirname(
                     os.path.dirname(
@@ -264,7 +309,7 @@ def register_inspection_tools(mcp):
             for quicker analysis when you don't need all details.
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             xml = d.dump_hierarchy(
                 compressed=compressed, pretty=pretty, max_depth=max_depth
             )
