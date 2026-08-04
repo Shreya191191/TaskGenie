@@ -1,8 +1,30 @@
 """User input and gesture tools for Android automation."""
 
+import shutil
+import subprocess
 import sys
 import uiautomator2 as u2
 from typing import Optional
+
+
+def get_device(device_id: Optional[str] = None) -> u2.Device:
+    """Connect to uiautomator2 device, auto-resolving first available device if device_id is None."""
+    if not device_id:
+        adb_path = shutil.which("adb")
+        if adb_path:
+            try:
+                res = subprocess.run(
+                    [adb_path, "devices"], capture_output=True, text=True
+                )
+                for line in res.stdout.strip().splitlines()[1:]:
+                    if line.strip():
+                        parts = line.split()
+                        if len(parts) >= 2 and parts[1] == "device":
+                            device_id = parts[0]
+                            break
+            except Exception:
+                pass
+    return u2.connect(device_id)
 
 
 def register_input_tools(mcp):
@@ -37,7 +59,7 @@ def register_input_tools(mcp):
             >>> press_key("back")  # Go back
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             d.press(key)
             return True
         except Exception as e:
@@ -80,17 +102,17 @@ def register_input_tools(mcp):
             ValueError: If an invalid selector_type is provided
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             if selector_type == "text":
-                el = d(text=selector).wait(timeout=timeout)
+                el = d(text=selector)
             elif selector_type == "resourceId":
-                el = d(resourceId=selector).wait(timeout=timeout)
+                el = d(resourceId=selector)
             elif selector_type == "description":
-                el = d(description=selector).wait(timeout=timeout)
+                el = d(description=selector)
             else:
                 raise ValueError(f"Invalid selector_type: {selector_type}")
 
-            if el and el.exists:
+            if el.wait(timeout=timeout):
                 el.click()
                 return True
             return False
@@ -127,7 +149,7 @@ def register_input_tools(mcp):
             >>> long_click("com.app:id/draggable", "resourceId")  # Long click by ID
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             if selector_type == "text":
                 el = d(text=selector)
             elif selector_type == "resourceId":
@@ -183,7 +205,7 @@ def register_input_tools(mcp):
             Use (0, 0) for top-left corner.
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             d.swipe(start_x, start_y, end_x, end_y, duration=duration)
             return True
         except Exception as e:
@@ -221,7 +243,7 @@ def register_input_tools(mcp):
             >>> drag("com.app:id/card", "resourceId", 100, 100)  # Drag by resource ID
         """
         try:
-            d = u2.connect(device_id)
+            d = get_device(device_id)
             if selector_type == "text":
                 el = d(text=selector)
             elif selector_type == "resourceId":
@@ -269,8 +291,14 @@ def register_input_tools(mcp):
             Use click() to focus a text field if needed.
         """
         try:
-            d = u2.connect(device_id)
-            d.send_keys(text, clear=clear)
+            d = get_device(device_id)
+            if clear:
+                try:
+                    d.clear_text()
+                except Exception:
+                    pass
+            escaped_text = text.replace(" ", "%s")
+            d.shell(["input", "text", escaped_text])
             return True
         except Exception as e:
             print(f"Failed to send text: {str(e)}", file=sys.stderr)
